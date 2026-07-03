@@ -1,48 +1,145 @@
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
+import { useNavigate } from "react-router";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function Write() {
-  const onSubmit = e => {
-    e.preventDefault();
+export default function Write({ isModifyMode, boardId, handleCancel }) {
+  let navigate = useNavigate();
+  const [content, setContent] = useState({
+    name: "",
+    title: "",
+    content: "",
+  });
 
+  useEffect(() => {
+    if (isModifyMode && boardId) {
+      //boardId로 서버에 글 조회, 조회결과로 content 업데이트
+      axios
+        .get(`http://localhost:3000/view?id=${boardId}`)
+        .then(response => {
+          console.log(response.data); //[{..}]
+          //setContent(response.data);
+          //data가 없거나 data의 배열의 개수가 0가 같다면
+          if (!response.data || response.data.length === 0) {
+            setIsError(true);
+            return;
+          }
+
+          const data = response.data[0];
+
+          setContent({
+            name: data.writer,
+            title: data.title,
+            content: data.content,
+            date: data.date,
+          });
+        })
+        .catch(error => {
+          console.error(error);
+          setIsError(true);
+        })
+        .finally(() => {
+          console.log("요청완료");
+        });
+    }
+  }, []);
+
+  const validate = e => {
+    // 빈칸 없애기 -> 비어있는지 체크
+    const name = e.target.name.value.trim();
+    const title = e.target.title.value.trim();
+    const content = e.target.content.value.trim();
+    if (!name || !title || !content) {
+      alert("모든 내용을 작성해주세요");
+      return null;
+    }
+    return {
+      name,
+      title,
+      content,
+    };
+  };
+
+  const write = e => {
+    e.preventDefault();
+    const formData = validate(e);
+    if (!formData) return;
     axios
-      .post("http://localhost:3000/write", {
-        name: e.target.name.value,
-        title: e.target.title.value,
-        content: e.target.content.value,
-      })
+      .post("http://localhost:3000/write", formData)
       .then(response => {
-        console.log(response.data);
+        navigate("/");
       })
       .catch(error => {
         console.error(error);
       })
-      .finally(() => {
-        console.log("요청 완료");
-      });
+      .finally(() => {});
+  };
+  const update = e => {
+    e.preventDefault();
+    const formData = validate(e);
+    if (!formData) return;
+    axios
+      .post("http://localhost:3000/update", {
+        ...formData, // 풀어헤치기 -> name, title, content,
+        id: boardId,
+      })
+      .then(() => {
+        handleCancel();
+        navigate("/");
+      })
+      .catch(error => {
+        console.error(error);
+      })
+      .finally(() => {});
+  };
+
+  const handleClick = () => {
+    handleCancel();
+    navigate("/");
   };
 
   return (
     <>
-      <Form onSubmit={onSubmit}>
+      <h2 className="mb-3">{isModifyMode ? "글 수정" : "글 쓰기"}</h2>
+      <Form onSubmit={isModifyMode ? update : write}>
         <Form.Group className="mb-3" controlId="name">
           <Form.Label>글쓴이</Form.Label>
-          <Form.Control type="text" name="name" placeholder="이름을 입력해주세요" />
+          <Form.Control
+            type="text"
+            name="name"
+            defaultValue={content.name}
+            placeholder="이름을 입력해주세요"
+            required
+          />
         </Form.Group>
         <Form.Group className="mb-3" controlId="title">
           <Form.Label>제목</Form.Label>
-          <Form.Control type="text" name="title" placeholder="제목을 입력해주세요" />
+          <Form.Control
+            type="text"
+            name="title"
+            defaultValue={content.title}
+            placeholder="제목을 입력해주세요"
+            required
+          />
         </Form.Group>
         <Form.Group className="mb-3" controlId="content">
           <Form.Label>내용</Form.Label>
-          <Form.Control as="textarea" name="content" rows={3} />
+          <Form.Control
+            as="textarea"
+            name="content"
+            defaultValue={content.content}
+            rows={3}
+            required
+          />
         </Form.Group>
         <div className="d-flex gap-1 justify-content-end">
           <Button type="submit" variant="primary">
             입력
           </Button>
-          <Button variant="secondary">취소</Button>
+          <Button variant="secondary" onClick={handleClick}>
+            취소
+          </Button>
         </div>
       </Form>
     </>
