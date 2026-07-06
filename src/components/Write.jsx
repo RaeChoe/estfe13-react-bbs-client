@@ -66,14 +66,22 @@ export default function Write({ isModifyMode, boardId, handleCancel }) {
     };
   };
 
-  const createFormData = validatedData => {
+  const createFormData = (validatedData, id) => {
     const formData = new FormData();
     formData.append("writer", validatedData.name);
     formData.append("title", validatedData.title);
     formData.append("content", validatedData.content);
 
+    if (id) {
+      formData.append("id", id);
+    }
     if (content.image) {
+      // 새 이미지
       formData.append("image", content.image);
+    }
+    if (removeImage) {
+      // 기존 이미지 삭제 ture시
+      formData.append("remove_image", "1");
     }
     return formData;
   };
@@ -84,6 +92,9 @@ export default function Write({ isModifyMode, boardId, handleCancel }) {
     if (!validatedData) return;
 
     const formData = createFormData(validatedData);
+    for (const [key, value] of formData.entries()) {
+      console.log(key, value);
+    }
 
     axios
       .post("http://localhost:3000/write", formData, {
@@ -100,21 +111,19 @@ export default function Write({ isModifyMode, boardId, handleCancel }) {
   const update = e => {
     e.preventDefault();
     const validatedData = validate(e);
+    console.log(validatedData);
+
     if (!validatedData) return;
 
-    const formData = createFormData(validatedData);
+    const formData = createFormData(validatedData, boardId);
+    for (const [key, value] of formData.entries()) {
+      console.log(key, value);
+    }
 
     axios
-      .post(
-        "http://localhost:3000/update",
-        {
-          ...validatedData, // 풀어헤치기 -> name, title, content,
-          id: boardId,
-        },
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      )
+      .post("http://localhost:3000/update", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
       .then(() => {
         handleCancel();
         navigate("/");
@@ -191,8 +200,11 @@ export default function Write({ isModifyMode, boardId, handleCancel }) {
             />
             <Form.Check // prettier-ignore
               type="checkbox"
-              id={`default-${type}`}
-              label={`default ${type}`}
+              id={`default-check`}
+              label="기존이미지 제거"
+              onChange={e => {
+                setRemoveImage(e.target.checked);
+              }}
             />
           </div>
         )}
